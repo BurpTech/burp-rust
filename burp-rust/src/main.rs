@@ -8,5 +8,18 @@ fn main() {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    info!("Hello, world!");
+    // let esp_nvs_partition = EspDefaultNvsPartition::take()
+    //     .unwrap();
+    // let esp_nvs = EspNvs::new(
+    //     esp_nvs_partition,
+    //     "burp",
+    //     true
+    // ).unwrap();
+
+    info!("Hello, world");
+
+    // let esp_nvs_wrapper = EspNvsWrapper(esp_nvs);
+
+    // let config = Config::new(&esp_nvs_wrapper);
+    // info!("{}", config.name.as_str())
 }
