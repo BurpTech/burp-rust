@@ -1,5 +1,5 @@
-.DS_Store
 /.vscode
 /.embuild
 /target
 /Cargo.lock
+/.idea/workspace.xml

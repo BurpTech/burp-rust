@@ -1,2 +1,1 @@
-pub mod mock_storage;
-pub mod config_error;
+pub(crate) mod mock_esp_nvs;

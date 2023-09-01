@@ -1,10 +1,9 @@
 [package]
-name = "burp-rust"
+name = "burp-rust-app"
 version = "0.1.0"
 authors = ["Peter Halliday <pghalliday@gmail.com>"]
 edition = "2021"
 resolver = "2"
-rust-version = "1.66"
 
 [profile.release]
 opt-level = "s"
