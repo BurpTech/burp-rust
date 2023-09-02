@@ -84,8 +84,7 @@ mod tests {
 
     #[test]
     fn uses_default_value_when_not_in_storage() {
-        MockEspNvs::reset();
-        let mock_esp_nvs = MockEspNvs::new();
+        let mock_esp_nvs = MockEspNvs::from([]);
         let mut blob_config: BlobConfig<100> = BlobConfig::new("name", "default_name".as_bytes());
         blob_config.read(&mock_esp_nvs).unwrap();
         let name = from_utf8(blob_config.get()).unwrap();
@@ -94,9 +93,9 @@ mod tests {
 
     #[test]
     fn does_read_value_from_storage() {
-        MockEspNvs::reset();
-        MockEspNvs::insert(String::from("name"), MockEspNvsValue::BlobValue(Vec::from("this is a test")));
-        let mock_esp_nvs = MockEspNvs::new();
+        let mock_esp_nvs = MockEspNvs::from([
+            (String::from("name"), MockEspNvsValue::BlobValue(Vec::from("this is a test"))),
+        ]);
         let mut blob_config: BlobConfig<100> = BlobConfig::new("name", "default_name".as_bytes());
         blob_config.read(&mock_esp_nvs).unwrap();
         let name = from_utf8(blob_config.get()).unwrap();
