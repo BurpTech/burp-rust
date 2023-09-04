@@ -1,5 +1,6 @@
 pub mod config;
-pub mod storage;
+pub mod network;
+pub mod traits;
 mod debug;
 #[cfg(test)]
 mod mocks;

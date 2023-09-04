@@ -1,5 +1,5 @@
+use burp_rust_lib::traits::storage::Storage;
 use esp_idf_svc::nvs::EspNvs;
-use burp_rust_lib::storage::Storage;
 use esp_idf_sys::EspError;
 
 pub struct EspNvsWrapper<T: esp_idf_svc::nvs::NvsPartitionId>(pub EspNvs<T>);

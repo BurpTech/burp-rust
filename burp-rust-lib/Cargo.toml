@@ -9,6 +9,9 @@ rust-version = "1.71"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+embedded-svc = "0.25.3"
+log = "0.4.20"
+async-trait = "0.1.73"
 
 [dev-dependencies]
 thiserror = "1.0.47"

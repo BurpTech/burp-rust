@@ -1,0 +1,3 @@
+[submodule "burp-rust-app/esp-protocols"]
+	path = burp-rust-app/esp-protocols
+	url = https://github.com/espressif/esp-protocols.git

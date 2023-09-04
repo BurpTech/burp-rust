@@ -1,5 +1,5 @@
 use std::error::Error;
-use crate::storage::Storage;
+use crate::traits::storage::Storage;
 
 pub trait ReadWrite<E: Error> {
     fn read(&mut self, storage: &dyn Storage<E>) -> Result<(), E>;

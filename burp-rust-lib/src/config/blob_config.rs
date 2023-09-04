@@ -1,7 +1,7 @@
 use std::error::Error;
-use crate::storage::Storage;
-use crate::config::read_write::ReadWrite;
+use crate::traits::read_write::ReadWrite;
 use crate::debug::debug_blob::DebugBlob;
+use crate::traits::storage::Storage;
 
 pub struct BlobConfig<'a, const N: usize> {
     name: &'a str,
@@ -80,7 +80,7 @@ mod tests {
     use std::str::from_utf8;
     use crate::config::blob_config::BlobConfig;
     use crate::mocks::mock_esp_nvs::{MockEspNvs, MockEspNvsValue};
-    use crate::config::read_write::ReadWrite;
+    use crate::traits::read_write::ReadWrite;
 
     #[test]
     fn uses_default_value_when_not_in_storage() {
