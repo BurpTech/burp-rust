@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use thiserror::Error;
-use crate::traits::storage::Storage;
 
+use crate::traits::storage::Storage;
 
 pub enum MockEspNvsValue {
     BlobValue(Vec<u8>),

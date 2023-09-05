@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
-use crate::traits::read_write::ReadWrite;
+
 use crate::debug::debug_blob::DebugBlob;
+use crate::traits::read_write::ReadWrite;
 use crate::traits::storage::Storage;
 
 pub struct BlobConfig<'a, S, const N: usize> {
@@ -83,6 +84,7 @@ impl<S: Storage, const N: usize> ReadWrite for BlobConfig<'_, S, N> {
 mod tests {
     use std::str::from_utf8;
     use std::sync::{Arc, Mutex};
+
     use crate::config::blob_config::BlobConfig;
     use crate::mocks::mock_esp_nvs::{MockEspNvs, MockEspNvsValue};
     use crate::traits::read_write::ReadWrite;
@@ -93,7 +95,7 @@ mod tests {
         let mut blob_config: BlobConfig<MockEspNvs, 100> = BlobConfig::new(
             mock_esp_nvs.clone(),
             "name",
-            "default_name".as_bytes()
+            "default_name".as_bytes(),
         );
         blob_config.read().unwrap();
         let name = from_utf8(blob_config.get()).unwrap();
@@ -108,7 +110,7 @@ mod tests {
         let mut blob_config: BlobConfig<MockEspNvs, 100> = BlobConfig::new(
             mock_esp_nvs.clone(),
             "name",
-            "default_name".as_bytes()
+            "default_name".as_bytes(),
         );
         blob_config.read().unwrap();
         let name = from_utf8(blob_config.get()).unwrap();

@@ -19,8 +19,8 @@ impl Display for DebugBlob<'_> {
             Ok(utf8) => write!(f, "{}: {}", VALID_UTF8_LABEL, utf8),
             Err(utf8_error) => unsafe {
                 write!(f, "{}, {}",
-                    INVALID_UTF8_LABEL,
-                    std::str::from_utf8_unchecked(&self.blob[..utf8_error.valid_up_to()]),
+                       INVALID_UTF8_LABEL,
+                       std::str::from_utf8_unchecked(&self.blob[..utf8_error.valid_up_to()]),
                 )
             },
         }

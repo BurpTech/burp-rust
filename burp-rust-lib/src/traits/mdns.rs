@@ -16,6 +16,6 @@ pub trait Mdns {
         service_type: &str,
         proto: &str,
         port: u16,
-        txt: &[(&str, &str)]
+        txt: &[(&str, &str)],
     ) -> Result<(), Self::Error>;
 }

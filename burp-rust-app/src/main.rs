@@ -14,11 +14,11 @@ use esp_idf_svc::mdns::EspMdns;
 use esp_idf_svc::nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault};
 use esp_idf_svc::timer::EspTaskTimerService;
 use esp_idf_svc::wifi::{AsyncWifi, EspWifi};
-use esp_idf_sys::{esp_err_to_name, EspError};
+use esp_idf_sys::{esp, esp_base_mac_addr_get, esp_err_to_name, EspError};
 use log::*;
+
 use burp_rust_app::async_wifi_wrapper::AsyncWifiWrapper;
 use burp_rust_app::esp_mdns_wrapper::EspMdnsWrapper;
-
 use burp_rust_app::esp_nvs_wrapper::EspNvsWrapper;
 
 #[toml_cfg::toml_config]
@@ -58,8 +58,10 @@ fn main() -> Result<(), SpawnError> {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
+    let base_mac_address = get_base_mac_address().unwrap();
+
     let nvs = init_nvs();
-    let config = init_config(nvs.clone());
+    let config = init_config(nvs.clone(), &base_mac_address);
     let wifi = init_async_wifi();
     let mdns = init_mdns();
     let mut network = Network::new(config.clone(), wifi, mdns);
@@ -86,8 +88,8 @@ fn init_async_wifi() -> AsyncWifiWrapper<'static> {
     ).unwrap())
 }
 
-fn init_config(nvs: Arc<Mutex<EspNvsWrapper<NvsDefault>>>) -> Arc<Mutex<Config<'static, EspNvsWrapper<NvsDefault>>>> {
-    let mut config = Config::new(nvs, WIFI_CONFIG.wifi_ssid, WIFI_CONFIG.wifi_psk);
+fn init_config(nvs: Arc<Mutex<EspNvsWrapper<NvsDefault>>>, base_mac_address: &[u8; 6]) -> Arc<Mutex<Config<'static, EspNvsWrapper<NvsDefault>>>> {
+    let mut config = Config::new(nvs, base_mac_address, WIFI_CONFIG.wifi_ssid, WIFI_CONFIG.wifi_psk);
     config.read().unwrap();
     Arc::new(Mutex::new(config))
 }
@@ -101,4 +103,10 @@ fn init_nvs() -> Arc<Mutex<EspNvsWrapper<NvsDefault>>> {
         true,
     ).unwrap();
     Arc::new(Mutex::new(EspNvsWrapper(esp_nvs)))
+}
+
+fn get_base_mac_address() -> Result<[u8; 6], EspError> {
+    let mut mac = [0_u8; 6];
+    esp!(unsafe { esp_base_mac_addr_get(mac.as_mut_ptr()) })?;
+    Ok(mac)
 }

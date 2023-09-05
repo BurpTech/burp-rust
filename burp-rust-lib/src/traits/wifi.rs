@@ -1,4 +1,5 @@
 use std::error::Error;
+
 use embedded_svc::ipv4::IpInfo;
 use embedded_svc::wifi::{AccessPointInfo, Configuration};
 
