@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use burp_rust_lib::traits::wifi::Wifi;
 use embedded_svc::ipv4::IpInfo;
 use embedded_svc::wifi::{AccessPointInfo, Configuration};
@@ -7,9 +6,10 @@ use esp_idf_sys::EspError;
 
 pub struct AsyncWifiWrapper<'a>(pub AsyncWifi<EspWifi<'a>>);
 
-#[async_trait(?Send)]
-impl Wifi<EspError> for AsyncWifiWrapper<'_> {
-    fn set_configuration(&mut self, conf: &Configuration) -> Result<(), EspError> {
+impl Wifi for AsyncWifiWrapper<'_> {
+    type Error = EspError;
+
+    fn set_configuration(&mut self, conf: &Configuration) -> Result<(), Self::Error> {
         self.0.set_configuration(conf)
     }
 
@@ -29,7 +29,7 @@ impl Wifi<EspError> for AsyncWifiWrapper<'_> {
         self.0.wait_netif_up().await
     }
 
-    fn get_ip_info(&self) -> Result<IpInfo, EspError> {
+    fn get_ip_info(&self) -> Result<IpInfo, Self::Error> {
         self.0.wifi().sta_netif().get_ip_info()
     }
 }

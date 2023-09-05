@@ -1,8 +1,10 @@
 use std::ffi::CStr;
 use std::future::Future;
+use std::str::Utf8Error;
+use std::sync::{Arc, Mutex};
 
 use burp_rust_lib::config::Config;
-use burp_rust_lib::network::Network;
+use burp_rust_lib::network::{Network, NetworkError};
 use burp_rust_lib::traits::read_write::ReadWrite;
 use edge_executor::SpawnError;
 use esp_idf_hal::prelude::Peripherals;
@@ -27,13 +29,25 @@ pub struct WifiConfig {
     wifi_psk: &'static str,
 }
 
+fn print_utf8_error(utf8_error: Utf8Error) {
+    error!("UTF-8 Error encountered: {}", utf8_error);
+}
+
+fn print_esp_error(esp_error: EspError) {
+    let c_str = unsafe { CStr::from_ptr(esp_err_to_name(esp_error.code())) };
+    error!("ESP Error encountered: {}", c_str.to_str().unwrap());
+}
+
 async fn print_async_error(
-    result: impl Future<Output=Result<(), EspError>>,
+    result: impl Future<Output=Result<(), NetworkError<EspError, EspError>>>,
 ) {
     let r = result.await;
     if let Err(error) = r {
-        let c_str = unsafe { CStr::from_ptr(esp_err_to_name(error.code())) };
-        error!("Error encountered: {}", c_str.to_str().unwrap());
+        match error {
+            NetworkError::Utf8Error(utf8_error) => print_utf8_error(utf8_error),
+            NetworkError::WifiError(esp_error) => print_esp_error(esp_error),
+            NetworkError::MdnsError(esp_error) => print_esp_error(esp_error),
+        }
     }
 }
 
@@ -44,11 +58,11 @@ fn main() -> Result<(), SpawnError> {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    let mut nvs = init_nvs();
-    let config = init_config(&mut nvs);
-    let mut wifi = init_async_wifi();
-    let mut mdns = init_mdns();
-    let mut network = Network::new(&config, &mut wifi, &mut mdns);
+    let nvs = init_nvs();
+    let config = init_config(nvs.clone());
+    let wifi = init_async_wifi();
+    let mdns = init_mdns();
+    let mut network = Network::new(config.clone(), wifi, mdns);
 
     let executor = EspExecutor::new();
     let mut tasks = heapless::Vec::<_, 1>::new();
@@ -72,19 +86,19 @@ fn init_async_wifi() -> AsyncWifiWrapper<'static> {
     ).unwrap())
 }
 
-fn init_config(nvs: &mut EspNvsWrapper<NvsDefault>) -> Config {
-    let mut config = Config::new(WIFI_CONFIG.wifi_ssid, WIFI_CONFIG.wifi_psk);
-    config.read(nvs).unwrap();
-    config
+fn init_config(nvs: Arc<Mutex<EspNvsWrapper<NvsDefault>>>) -> Arc<Mutex<Config<'static, EspNvsWrapper<NvsDefault>>>> {
+    let mut config = Config::new(nvs, WIFI_CONFIG.wifi_ssid, WIFI_CONFIG.wifi_psk);
+    config.read().unwrap();
+    Arc::new(Mutex::new(config))
 }
 
-fn init_nvs() -> EspNvsWrapper<NvsDefault> {
+fn init_nvs() -> Arc<Mutex<EspNvsWrapper<NvsDefault>>> {
     let esp_nvs_partition = EspDefaultNvsPartition::take()
         .unwrap();
     let esp_nvs = EspNvs::new(
         esp_nvs_partition,
-        "burp",
+        "burptech",
         true,
     ).unwrap();
-    EspNvsWrapper(esp_nvs)
+    Arc::new(Mutex::new(EspNvsWrapper(esp_nvs)))
 }

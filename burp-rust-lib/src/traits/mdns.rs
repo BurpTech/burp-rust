@@ -1,14 +1,15 @@
 use std::error::Error;
 
-pub trait Mdns<E: Error> {
+pub trait Mdns {
+    type Error: Error;
     fn set_hostname(
         &mut self,
         hostname: &str,
-    ) -> Result<(), E>;
+    ) -> Result<(), Self::Error>;
     fn set_instance_name(
         &mut self,
         instance_name: &str,
-    ) -> Result<(), E>;
+    ) -> Result<(), Self::Error>;
     fn add_service(
         &mut self,
         instance_name: Option<&str>,
@@ -16,5 +17,5 @@ pub trait Mdns<E: Error> {
         proto: &str,
         port: u16,
         txt: &[(&str, &str)]
-    ) -> Result<(), E>;
+    ) -> Result<(), Self::Error>;
 }

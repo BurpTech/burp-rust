@@ -1,7 +1,7 @@
 use std::error::Error;
-use crate::traits::storage::Storage;
 
-pub trait ReadWrite<E: Error> {
-    fn read(&mut self, storage: &dyn Storage<E>) -> Result<(), E>;
-    fn write(&self, storage: &mut dyn Storage<E>) -> Result<(), E>;
+pub trait ReadWrite {
+    type Error: Error;
+    fn read(&mut self) -> Result<(), Self::Error>;
+    fn write(&mut self) -> Result<(), Self::Error>;
 }

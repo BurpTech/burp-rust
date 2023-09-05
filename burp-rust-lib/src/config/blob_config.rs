@@ -1,17 +1,18 @@
-use std::error::Error;
+use std::sync::{Arc, Mutex};
 use crate::traits::read_write::ReadWrite;
 use crate::debug::debug_blob::DebugBlob;
 use crate::traits::storage::Storage;
 
-pub struct BlobConfig<'a, const N: usize> {
+pub struct BlobConfig<'a, S, const N: usize> {
+    storage: Arc<Mutex<S>>,
     name: &'a str,
     default: &'a [u8],
     buffer: [u8; N],
     len: usize,
 }
 
-impl<'a, const N: usize> BlobConfig<'a, N> {
-    pub fn new(name: &'a str, default: &'a [u8]) -> BlobConfig<'a, N> {
+impl<'a, S: Storage, const N: usize> BlobConfig<'a, S, N> {
+    pub fn new(storage: Arc<Mutex<S>>, name: &'a str, default: &'a [u8]) -> BlobConfig<'a, S, N> {
         let len = default.len();
         assert!(
             len <= N,
@@ -22,6 +23,7 @@ impl<'a, const N: usize> BlobConfig<'a, N> {
             len,
         );
         BlobConfig {
+            storage,
             default,
             name,
             buffer: [0_u8; N],
@@ -60,44 +62,55 @@ impl<'a, const N: usize> BlobConfig<'a, N> {
     }
 }
 
-impl<E: Error, const N: usize> ReadWrite<E> for BlobConfig<'_, N> {
-    fn read(&mut self, storage: &dyn Storage<E>) -> Result<(), E> {
+impl<S: Storage, const N: usize> ReadWrite for BlobConfig<'_, S, N> {
+    type Error = S::Error;
+
+    fn read(&mut self) -> Result<(), Self::Error> {
         let mut buffer = [0_u8; N];
-        let blob_result = storage.get_blob(self.name, &mut buffer);
+        let blob_result = self.storage.lock().unwrap().get_blob(self.name, &mut buffer);
         blob_result.map(|blob_option| match blob_option {
             None => self.reset(),
             Some(blob) => self.set(blob),
         })
     }
 
-    fn write(&self, storage: &mut dyn Storage<E>) -> Result<(), E> {
-        storage.set_blob(self.name, &self.buffer[..self.len])
+    fn write(&mut self) -> Result<(), Self::Error> {
+        self.storage.lock().unwrap().set_blob(self.name, &self.buffer[..self.len])
     }
 }
 
 #[cfg(test)]
 mod tests {
     use std::str::from_utf8;
+    use std::sync::{Arc, Mutex};
     use crate::config::blob_config::BlobConfig;
     use crate::mocks::mock_esp_nvs::{MockEspNvs, MockEspNvsValue};
     use crate::traits::read_write::ReadWrite;
 
     #[test]
     fn uses_default_value_when_not_in_storage() {
-        let mock_esp_nvs = MockEspNvs::from([]);
-        let mut blob_config: BlobConfig<100> = BlobConfig::new("name", "default_name".as_bytes());
-        blob_config.read(&mock_esp_nvs).unwrap();
+        let mock_esp_nvs = Arc::new(Mutex::new(MockEspNvs::from([])));
+        let mut blob_config: BlobConfig<MockEspNvs, 100> = BlobConfig::new(
+            mock_esp_nvs.clone(),
+            "name",
+            "default_name".as_bytes()
+        );
+        blob_config.read().unwrap();
         let name = from_utf8(blob_config.get()).unwrap();
         assert_eq!(name, "default_name");
     }
 
     #[test]
     fn does_read_value_from_storage() {
-        let mock_esp_nvs = MockEspNvs::from([
+        let mock_esp_nvs = Arc::new(Mutex::new(MockEspNvs::from([
             (String::from("name"), MockEspNvsValue::BlobValue(Vec::from("this is a test"))),
-        ]);
-        let mut blob_config: BlobConfig<100> = BlobConfig::new("name", "default_name".as_bytes());
-        blob_config.read(&mock_esp_nvs).unwrap();
+        ])));
+        let mut blob_config: BlobConfig<MockEspNvs, 100> = BlobConfig::new(
+            mock_esp_nvs.clone(),
+            "name",
+            "default_name".as_bytes()
+        );
+        blob_config.read().unwrap();
         let name = from_utf8(blob_config.get()).unwrap();
         assert_eq!(name, "this is a test");
     }

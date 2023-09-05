@@ -1,23 +1,34 @@
 use std::error::Error;
-use std::str::from_utf8;
+use std::str::{from_utf8, Utf8Error};
+use std::sync::{Arc, Mutex};
 use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use crate::config::Config;
 use crate::traits::mdns::Mdns;
 use crate::traits::wifi::Wifi;
 use log::*;
+use thiserror::Error;
+use heapless::{String};
+use crate::traits::storage::Storage;
 
-pub struct Network<'a, E: Error> {
-    config: &'a Config<'a>,
-    wifi: &'a mut dyn Wifi<E>,
-    mdns: &'a mut dyn Mdns<E>,
+pub struct Network<'a, S, W, M> {
+    config: Arc<Mutex<Config<'a, S>>>,
+    wifi: W,
+    mdns: M,
 }
 
-impl<E: Error> Network<'_, E> {
-    pub fn new<'a>(
-        config: &'a Config,
-        wifi: &'a mut dyn Wifi<E>,
-        mdns: &'a mut dyn Mdns<E>,
-    ) -> Network<'a, E> {
+#[derive(Error, Debug)]
+pub enum NetworkError<W: Error, M: Error> {
+    Utf8Error(Utf8Error),
+    WifiError(W),
+    MdnsError(M),
+}
+
+impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
+    pub fn new(
+        config: Arc<Mutex<Config<S>>>,
+        wifi: W,
+        mdns: M,
+    ) -> Network<S, W, M> {
         Network {
             config,
             wifi,
@@ -25,10 +36,27 @@ impl<E: Error> Network<'_, E> {
         }
     }
 
-    pub async fn start(&mut self, ) -> Result<(), E> {
-        let ssid = from_utf8(self.config.ssid.get()).unwrap();
-        let pass = from_utf8(self.config.psk.get()).unwrap();
+    pub async fn start(&mut self, ) -> Result<(), NetworkError<W::Error, M::Error>> {
+        let ssid = self.get_ssid().map_err(NetworkError::Utf8Error)?;
+        let password = self.get_password().map_err(NetworkError::Utf8Error)?;
+        self.start_wifi(ssid, password).await.map_err(NetworkError::WifiError)?;
+        self.start_mdns().map_err(NetworkError::MdnsError)?;
+        Ok(())
+    }
 
+    fn get_ssid(&self) -> Result<String<32>, Utf8Error> {
+        Ok(String::from(
+            from_utf8(self.config.lock().unwrap().ssid.get())?
+        ))
+    }
+
+    fn get_password(&self) -> Result<String<64>, Utf8Error> {
+        Ok(String::from(
+            from_utf8(self.config.lock().unwrap().psk.get())?
+        ))
+    }
+
+    async fn start_wifi(&mut self, ssid: String<32>, password: String<64>) -> Result<(), W::Error> {
         self.wifi.set_configuration(&Configuration::Client(ClientConfiguration::default()))?;
         self.wifi.start().await?;
         info!("Wifi scanning for ssid: {}", ssid);
@@ -41,20 +69,25 @@ impl<E: Error> Network<'_, E> {
             info!("Configured access point {} not found during scanning, will go with unknown channel", ssid);
             None
         };
-        let auth_method = AuthMethod::WPA2Personal;
+
         self.wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-            ssid: ssid.into(),
-            password: pass.into(),
+            ssid,
+            password,
             channel,
-            auth_method,
+            auth_method: AuthMethod::WPA2Personal,
             ..Default::default()
         }))?;
+
         info!("Connecting wifi...");
         self.wifi.connect().await?;
         info!("Waiting for DHCP lease...");
         self.wifi.wait_netif_up().await?;
         let ip_info = self.wifi.get_ip_info()?;
         info!("Wifi DHCP info: {:?}", ip_info);
+        Ok(())
+    }
+
+    fn start_mdns(&mut self) -> Result<(), M::Error> {
         info!("Setting MDNS hostname");
         self.mdns.set_hostname("burptech_mdns_host")?;
         info!("Setting MDNS instance name");
