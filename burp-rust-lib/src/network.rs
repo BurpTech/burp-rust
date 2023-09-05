@@ -8,6 +8,7 @@ use log::*;
 use thiserror::Error;
 
 use crate::config::Config;
+use crate::name::get_name;
 use crate::traits::mdns::Mdns;
 use crate::traits::storage::Storage;
 use crate::traits::wifi::Wifi;
@@ -39,11 +40,10 @@ impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
     }
 
     pub async fn start(&mut self) -> Result<(), NetworkError<W::Error, M::Error>> {
-        let name = self.get_name().map_err(NetworkError::Utf8Error)?;
         let ssid = self.get_ssid().map_err(NetworkError::Utf8Error)?;
         let password = self.get_password().map_err(NetworkError::Utf8Error)?;
         self.start_wifi(ssid, password).await.map_err(NetworkError::WifiError)?;
-        self.start_mdns(name).map_err(NetworkError::MdnsError)?;
+        self.start_mdns().map_err(NetworkError::MdnsError)?;
         Ok(())
     }
 
@@ -56,12 +56,6 @@ impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
     fn get_password(&self) -> Result<String<64>, Utf8Error> {
         Ok(String::from(
             from_utf8(self.config.lock().unwrap().psk.get())?
-        ))
-    }
-
-    fn get_name(&self) -> Result<String<100>, Utf8Error> {
-        Ok(String::from(
-            from_utf8(self.config.lock().unwrap().name.get())?
         ))
     }
 
@@ -96,13 +90,14 @@ impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
         Ok(())
     }
 
-    fn start_mdns(&mut self, name: String<100>) -> Result<(), M::Error> {
+    fn start_mdns(&mut self) -> Result<(), M::Error> {
+        let name = get_name();
         info!("Setting MDNS hostname");
-        self.mdns.set_hostname(&name)?;
+        self.mdns.set_hostname(name)?;
         info!("Setting MDNS instance name");
-        self.mdns.set_instance_name(&name)?;
+        self.mdns.set_instance_name(name)?;
         info!("Adding _burptech service");
-        self.mdns.add_service(Some(&name), "_burptech", "_tcp", 1234, &[])?;
+        self.mdns.add_service(Some(name), "_burptech", "_tcp", 1234, &[])?;
         Ok(())
     }
 }
