@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::str::{from_utf8, Utf8Error};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use embedded_svc::wifi::{AuthMethod, ClientConfiguration, Configuration};
 use heapless::String;
@@ -25,6 +26,16 @@ pub enum NetworkError<W: Error, M: Error> {
     WifiError(W),
     MdnsError(M),
 }
+
+const MDNS_SERVICE_TYPE: &'static str = "_burptech";
+
+const MDNS_SERVICE_PROTOCOL: &'static str = "_tcp";
+
+const MDNS_SERVICE_PORT: u16 = 1234;
+
+const MDNS_QUERY_MAX_RESULTS: usize = 20;
+
+const MDNS_QUERY_TIMEOUT_SECONDS: u64 = 5;
 
 impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
     pub fn new(
@@ -97,7 +108,26 @@ impl<S: Storage, W: Wifi, M: Mdns> Network<'_, S, W, M> {
         info!("Setting MDNS instance name");
         self.mdns.set_instance_name(name)?;
         info!("Adding _burptech service");
-        self.mdns.add_service(Some(name), "_burptech", "_tcp", 1234, &[])?;
+        self.mdns.add_service(
+            Some(name),
+            MDNS_SERVICE_TYPE,
+            MDNS_SERVICE_PROTOCOL,
+            MDNS_SERVICE_PORT,
+            &[],
+        )?;
+        info!("Query _burptech services");
+        let mut results: heapless::Vec<M::QueryResult, MDNS_QUERY_MAX_RESULTS> = M::create_query_results();
+        let size = self.mdns.query_ptr(
+            MDNS_SERVICE_TYPE,
+            MDNS_SERVICE_PROTOCOL,
+            Duration::from_secs(MDNS_QUERY_TIMEOUT_SECONDS),
+            MDNS_QUERY_MAX_RESULTS,
+            &mut results,
+        )?;
+        info!("Query returned {} results", size);
+        for i in 0..size {
+            info!("Query result {}: {:?}", i, M::convert_query_result(&results[i]));
+        }
         Ok(())
     }
 }

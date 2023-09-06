@@ -4,19 +4,17 @@ use std::str::Utf8Error;
 use std::sync::{Arc, Mutex};
 
 use burp_rust_lib::config::Config;
-use burp_rust_lib::name::{get_name, init_name};
+use burp_rust_lib::name::init_name;
 use burp_rust_lib::network::{Network, NetworkError};
 use burp_rust_lib::traits::read_write::ReadWrite;
 use edge_executor::SpawnError;
-use embedded_svc::ipv4::{ClientConfiguration, Configuration, DHCPClientSettings};
 use esp_idf_hal::prelude::Peripherals;
 use esp_idf_hal::task::executor::EspExecutor;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::mdns::EspMdns;
-use esp_idf_svc::netif::{EspNetif, NetifConfiguration, NetifStack};
 use esp_idf_svc::nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault};
 use esp_idf_svc::timer::EspTaskTimerService;
-use esp_idf_svc::wifi::{AsyncWifi, EspWifi, WifiDriver};
+use esp_idf_svc::wifi::{AsyncWifi, EspWifi};
 use esp_idf_sys::{esp, esp_base_mac_addr_get, esp_err_to_name, EspError};
 use log::*;
 
@@ -86,20 +84,21 @@ fn init_async_wifi() -> AsyncWifiWrapper<'static> {
     let peripherals = Peripherals::take().unwrap();
     let esp_system_event_loop = EspSystemEventLoop::take().unwrap();
     AsyncWifiWrapper(AsyncWifi::wrap(
-        EspWifi::wrap_all(
-            WifiDriver::new(peripherals.modem, esp_system_event_loop.clone(), None).unwrap(),
-            EspNetif::new_with_conf(&NetifConfiguration {
-                key: "WIFI_STA".into(),
-                description: "sta".into(),
-                route_priority: 100,
-                ip_configuration: Configuration::Client(ClientConfiguration::DHCP(DHCPClientSettings {
-                    hostname: Some(get_name().into()),
-                })),
-                stack: NetifStack::Sta,
-                custom_mac: None,
-            }).unwrap(),
-            EspNetif::new_with_conf(&NetifConfiguration::eth_default_router()).unwrap(),
-        ).unwrap(),
+        EspWifi::new(peripherals.modem, esp_system_event_loop.clone(), None).unwrap(),
+        // EspWifi::wrap_all(
+        //     WifiDriver::new(peripherals.modem, esp_system_event_loop.clone(), None).unwrap(),
+        //     EspNetif::new_with_conf(&NetifConfiguration {
+        //         key: "WIFI_STA".into(),
+        //         description: "sta".into(),
+        //         route_priority: 100,
+        //         ip_configuration: Configuration::Client(ClientConfiguration::DHCP(DHCPClientSettings {
+        //             hostname: Some(get_name().into()),
+        //         })),
+        //         stack: NetifStack::Sta,
+        //         custom_mac: None,
+        //     }).unwrap(),
+        //     EspNetif::new_with_conf(&NetifConfiguration::eth_default_router()).unwrap(),
+        // ).unwrap(),
         esp_system_event_loop.clone(),
         EspTaskTimerService::new().unwrap(),
     ).unwrap())
